@@ -49,7 +49,7 @@ for dir in "$ROOT"/*/; do
 
   files=()
   shopt -s nullglob
-  for f in "$dir"dist/*.dmg "$dir"dist/*.pkg "$dir"dist/*.zip "$dir"dist/"How to Install.txt"; do files+=("$f"); done
+  for f in "$dir"dist/*.dmg "$dir"dist/*.pkg "$dir"dist/*.zip "$dir"dist/"How to Install.txt"; do [ -f "$f" ] && files+=("$f"); done
   shopt -u nullglob
   if [ ${#files[@]} -gt 0 ]; then
     version=$(basename "${files[0]}" | sed -E "s/^[A-Za-z]+-([0-9][0-9.]*[0-9]).*/\1/")

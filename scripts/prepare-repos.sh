@@ -2,7 +2,7 @@
 # Prepares each tool folder as its own git repo: shared .gitignore rules, MIT license, first commit.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-APPS=(AppSweep Calendesk Crest DreamAtlas FolderPilot Glint Hearth HobbyAtlas InvoiceDesk Juxta Kalam NotchDock Padwise Platewise Readscape RecipeCanvas RedactIQ SiliconScope Spyglass Tapwise Tickdesk Tuck Wattline)
+APPS=(AppSweep Calendesk Crest DreamAtlas FolderPilot Glint Hearth HobbyAtlas Juxta Kalam NotchDock Padwise Platewise Readscape RecipeCanvas RedactIQ SiliconScope Spyglass Tapwise Tickdesk Tuck Wattline)
 IGNORE=(
 ".DS_Store" ".build/" ".build-*/" "build/" "dist/" ".swiftpm/" "xcuserdata/" "DerivedData/"
 "# secrets and signing material — never commit"
@@ -16,7 +16,7 @@ for a in "${APPS[@]}"; do
   d="$ROOT/$a"; cd "$d"
   touch .gitignore
   for line in "${IGNORE[@]}"; do grep -qxF -- "$line" .gitignore || echo "$line" >> .gitignore; done
-  if [ "$a" = InvoiceDesk ]; then
+  if [ "$a" = ]; then
     for line in "data/" "Invoice Desk.app/" "*.log"; do grep -qxF -- "$line" .gitignore || echo "$line" >> .gitignore; done
   fi
   if [ ! -f LICENSE ]; then

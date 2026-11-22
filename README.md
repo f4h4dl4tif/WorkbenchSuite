@@ -29,7 +29,6 @@ Download the latest **Workbench** from [Releases](../../releases/latest). The `.
 | [Tickdesk](../../../Tickdesk) | Flip, LCD, minimal and analog desktop clocks | Productivity |
 | [Hearth](../../../Hearth) | A cozy, local-first personal dashboard | Productivity |
 | [HobbyAtlas](../../../HobbyAtlas) | A project manager built for hobbies | Productivity |
-| [Invoice Desk](../../../InvoiceDesk) | Invoicing and inventory in one Excel file | Productivity |
 | [Kalam](../../../Kalam) | A quiet daily journal | Life & Creativity |
 | [DreamAtlas](../../../DreamAtlas) | A private dream journal and pattern explorer | Life & Creativity |
 | [Readscape](../../../Readscape) | Visual reading intelligence for your bookshelf | Life & Creativity |
