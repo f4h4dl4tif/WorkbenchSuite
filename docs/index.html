@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workbench Suite</title>
+<meta name="description" content="Capable, open-source tools for your Mac. Native SwiftUI, local-first, MIT licensed, with one launcher to install and update them all.">
+<link rel="icon" href="icons/Workbench.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0e12; --bg2: #121318; --card: #16181e; --card-hover: #1c1e25;
+    --border: rgba(255,255,255,.07); --border-strong: rgba(255,255,255,.14);
+    --text: #f4f4f6; --muted: rgba(244,244,246,.6); --faint: rgba(244,244,246,.38);
+    --amber: #ffb547; --coral: #ff615c; --mint: #6be3a8; --blue: #73a8ff; --violet: #bf8cff;
+    --accent: linear-gradient(135deg, var(--amber), var(--coral));
+    --radius: 18px; --max: 1200px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 Inter, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  /* nav */
+  nav { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); background: rgba(13,14,18,.72); border-bottom: 1px solid var(--border); }
+  nav .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.01em; }
+  .brand img { width: 28px; height: 28px; }
+  nav .links { display: flex; gap: 22px; font-size: 14px; color: var(--muted); }
+  nav .links a:hover { color: var(--text); }
+  nav .spacer { flex: 1; }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 999px; font-weight: 600; font-size: 14px; white-space: nowrap; transition: transform .15s, background .15s, box-shadow .15s; }
+  .btn-primary { background: var(--accent); color: #17110a; box-shadow: 0 8px 30px -10px rgba(255,97,92,.6); }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 34px -10px rgba(255,97,92,.75); }
+  .btn-ghost { border: 1px solid var(--border-strong); background: rgba(255,255,255,.04); }
+  .btn-ghost:hover { background: rgba(255,255,255,.09); }
+  .btn-sm { height: 34px; padding: 0 14px; font-size: 13px; }
+  nav .btn { gap: 4px; }
+  .btn svg { width: 16px; height: 16px; }
+
+  /* hero */
+  .hero { position: relative; padding: 96px 0 40px; text-align: center; }
+  .hero::before { content: ""; position: absolute; inset: -120px 0 auto; height: 620px; background: radial-gradient(600px 300px at 50% 30%, rgba(255,140,80,.18), transparent 70%), radial-gradient(500px 260px at 70% 10%, rgba(115,168,255,.10), transparent 70%); pointer-events: none; z-index: -1; }
+  .eyebrow { display: inline-flex; gap: 10px; align-items: center; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding: 6px 14px; border: 1px solid var(--border); border-radius: 999px; background: rgba(255,255,255,.03); }
+  .eyebrow b { color: var(--amber); font-weight: 600; }
+  h1 { font-size: clamp(40px, 7vw, 78px); line-height: 1.02; letter-spacing: -.035em; font-weight: 800; margin: 26px auto 18px; max-width: 900px; }
+  h1 .grad { background: var(--accent); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lede { font-size: clamp(16px, 2vw, 19px); color: var(--muted); max-width: 640px; margin: 0 auto; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
+  .meta { margin-top: 18px; font-size: 13px; color: var(--faint); display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .meta span::before { content: "•"; margin-right: 14px; color: var(--border-strong); }
+  .meta span:first-child::before { content: none; }
+
+  .shot { margin: 64px auto 0; width: 100%; max-width: 1080px; height: auto; border-radius: 16px; border: 1px solid var(--border-strong); overflow: hidden; box-shadow: 0 40px 120px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(0,0,0,.4); }
+
+  /* icon marquee */
+  .marquee { margin: 72px 0 0; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+  .marquee-track { display: flex; gap: 18px; width: max-content; animation: scroll 60s linear infinite; }
+  .marquee img { width: 64px; height: 64px; transition: transform .2s; }
+  .marquee img:hover { transform: scale(1.12); }
+  @keyframes scroll { to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+
+  /* sections */
+  section { padding: 110px 0 0; }
+  .label { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .label b { color: var(--amber); font-weight: 600; margin-right: 6px; }
+  h2 { font-size: clamp(30px, 4.4vw, 48px); letter-spacing: -.03em; line-height: 1.08; margin: 14px 0 14px; font-weight: 750; }
+  .sub { color: var(--muted); max-width: 620px; margin: 0; font-size: 16px; }
+  .head { display: flex; align-items: end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 30px; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--border); background: rgba(255,255,255,.03); color: var(--muted); border-radius: 999px; padding: 7px 14px; font: 500 13px Inter, sans-serif; cursor: pointer; transition: all .15s; }
+  .chip:hover { color: var(--text); border-color: var(--border-strong); }
+  .chip[aria-pressed="true"] { color: #17110a; background: var(--accent); border-color: transparent; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; }
+  .card { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); transition: transform .18s, border-color .18s, background .18s; overflow: hidden; }
+  .card::after { content: ""; position: absolute; inset: 0 0 auto; height: 120px; background: radial-gradient(220px 100px at 20% 0%, var(--tint, rgba(255,181,71,.10)), transparent 70%); pointer-events: none; opacity: .9; }
+  .card:hover { transform: translateY(-3px); border-color: rgba(255,181,71,.32); background: var(--card-hover); }
+  .card-top { display: flex; gap: 14px; align-items: center; position: relative; z-index: 1; }
+  .card-top img { width: 56px; height: 56px; flex: none; }
+  .card h3 { margin: 0 0 4px; font-size: 17px; letter-spacing: -.01em; }
+  .num { position: absolute; top: 18px; right: 20px; font-size: 11px; color: var(--faint); z-index: 1; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; flex: 1; position: relative; z-index: 1; }
+  .card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; position: relative; z-index: 1; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { font-size: 11px; color: var(--faint); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; }
+  .card-links { display: flex; gap: 6px; }
+  .icon-btn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; border: 1px solid var(--border); color: var(--muted); transition: all .15s; }
+  .icon-btn:hover { color: var(--text); border-color: var(--border-strong); background: rgba(255,255,255,.05); }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  /* principles */
+  .principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .principle { background: var(--bg2); padding: 28px; }
+  .principle .mono { font-size: 12px; color: var(--amber); }
+  .principle h3 { margin: 12px 0 8px; font-size: 18px; letter-spacing: -.01em; }
+  .principle p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* launcher block */
+  .launcher { display: grid; grid-template-columns: 1fr 1.25fr; gap: 48px; align-items: center; padding: 48px; border-radius: 24px; border: 1px solid var(--border); background: radial-gradient(500px 300px at 0% 0%, rgba(255,140,80,.12), transparent 70%), var(--bg2); }
+  .launcher ul { list-style: none; padding: 0; margin: 22px 0 28px; display: grid; gap: 12px; }
+  .launcher li { display: flex; gap: 12px; color: var(--muted); font-size: 15px; }
+  .launcher li::before { content: ""; flex: none; width: 18px; height: 18px; margin-top: 3px; border-radius: 6px; background: var(--accent); mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'/%3E%3C/svg%3E") center/14px no-repeat, linear-gradient(#000,#000); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'/%3E%3C/svg%3E") center/14px no-repeat; }
+  .launcher > * { min-width: 0; }
+  .launcher .shot { margin: 0; }
+
+  /* footer */
+  .closing { text-align: center; padding: 120px 0 90px; }
+  footer { border-top: 1px solid var(--border); padding: 40px 0 50px; color: var(--faint); font-size: 13px; }
+  footer .wrap { display: flex; gap: 24px; justify-content: space-between; flex-wrap: wrap; }
+  footer a:hover { color: var(--text); }
+  footer .cols { display: flex; gap: 40px; flex-wrap: wrap; }
+  footer .cols div { display: grid; gap: 6px; }
+  footer .cols b { color: var(--muted); font-weight: 600; }
+
+  @media (max-width: 900px) {
+    .principles { grid-template-columns: 1fr 1fr; }
+    .launcher { grid-template-columns: 1fr; padding: 28px; gap: 28px; }
+    nav .links { display: none; }
+  }
+  @media (max-width: 600px) {
+    .wrap { padding: 0 16px; }
+    .hero { padding-top: 64px; }
+    .principles { grid-template-columns: 1fr; }
+    nav .btn .long { display: none; }
+    section { padding-top: 80px; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#"><img src="icons/Workbench.png" alt=""><span>Workbench Suite</span></a>
+    <div class="links"><a href="#tools">Tools</a><a href="#principles">Principles</a><a href="#launcher">Launcher</a><a data-gh="suite" href="#">GitHub</a></div>
+    <div class="spacer"></div>
+    <a class="btn btn-primary btn-sm" data-gh="launcher-download" href="#">Download<span class="long">Launcher</span></a>
+  </div>
+</nav>
+
+<header class="hero wrap">
+  <span class="eyebrow mono"><b id="count">23</b> native Mac tools · MIT</span>
+  <h1>Capable, <span class="grad">open-source</span> tools for your Mac.</h1>
+  <p class="lede">A growing suite of small, focused macOS apps. Native SwiftUI, local-first and private. Install any of them in one click, and keep them all up to date, from one launcher.</p>
+  <div class="cta">
+    <a class="btn btn-primary" data-gh="launcher-download" href="#"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 16 6 10l1.4-1.4 3.6 3.6V3h2v9.2l3.6-3.6L18 10zM5 19h14v2H5z"/></svg>Download Launcher</a>
+    <a class="btn btn-ghost" href="#tools">Explore the tools</a>
+  </div>
+  <div class="meta"><span>macOS 14 Sonoma or later</span><span>Apple silicon &amp; Intel</span><span>No accounts, no subscriptions</span></div>
+  <img class="shot" src="launcher.jpg" alt="The Workbench launcher showing a grid of tools with Install and Open buttons" width="1800" height="1190" loading="eager">
+</header>
+
+<div class="marquee" aria-hidden="true"><div class="marquee-track" id="marquee"></div></div>
+
+<section id="tools">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <div class="label mono"><b>01</b>/ The lineup</div>
+        <h2>Every tool, one place.</h2>
+        <p class="sub">Each tool is its own open-source repo with its own releases. Download one directly, or let the launcher handle installs and updates.</p>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Filter by category"></div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+</section>
+
+<section id="principles">
+  <div class="wrap">
+    <div class="label mono"><b>02</b>/ Principles</div>
+    <h2>Built the way Mac apps should be.</h2>
+    <div class="principles" style="margin-top:34px">
+      <div class="principle"><span class="mono">01</span><h3>Open source</h3><p>Every tool is MIT licensed. Read the code, fork it, ship your own build.</p></div>
+      <div class="principle"><span class="mono">02</span><h3>Native, not wrapped</h3><p>SwiftUI and AppKit, no Electron and no web views. Small downloads, low memory, real Mac behaviour.</p></div>
+      <div class="principle"><span class="mono">03</span><h3>Local-first</h3><p>Your files and data stay on your Mac. No accounts, no cloud sync you didn't ask for, no tracking.</p></div>
+      <div class="principle"><span class="mono">04</span><h3>On-device intelligence</h3><p>Where a tool uses AI, it runs on Apple's on-device models. Nothing is uploaded.</p></div>
+      <div class="principle"><span class="mono">05</span><h3>Focused</h3><p>Each app does one job well, instead of one app trying to do everything.</p></div>
+      <div class="principle"><span class="mono">06</span><h3>Free forever</h3><p>No subscriptions and no trials. Install what you need and keep it.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="launcher">
+  <div class="wrap">
+    <div class="launcher">
+      <div>
+        <div class="label mono"><b>03</b>/ The launcher</div>
+        <h2>Install once. Stay current.</h2>
+        <p class="sub">Workbench is the recommended way to get the suite. It reads each tool's latest GitHub release and does the rest.</p>
+        <ul>
+          <li>One-click install into Applications from each tool's release</li>
+          <li>Shows what's installed and which tools have updates</li>
+          <li>Update everything at once, open or uninstall any tool</li>
+          <li>New tools show up automatically as the suite grows</li>
+        </ul>
+        <a class="btn btn-primary" data-gh="launcher-download" href="#">Download Workbench</a>
+      </div>
+      <img class="shot" src="launcher.jpg" alt="" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<div class="closing wrap">
+  <div class="label mono"><b>04</b>/ Contribute</div>
+  <h2>Want a tool that isn't here?</h2>
+  <p class="sub" style="margin:0 auto 28px">Open an issue with your idea, or send a pull request to any tool. Every repo welcomes contributions.</p>
+  <div class="cta" style="margin-top:0"><a class="btn btn-ghost" data-gh="issues" href="#">Suggest a tool</a><a class="btn btn-ghost" data-gh="suite" href="#">Star on GitHub</a></div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div>© 2026 Workbench Suite contributors · MIT License</div>
+    <div class="cols">
+      <div><b>Suite</b><a data-gh="launcher-download" href="#">Launcher</a><a href="#tools">All tools</a><a href="#principles">Principles</a></div>
+      <div><b>Community</b><a data-gh="suite" href="#">GitHub</a><a data-gh="issues" href="#">Issues</a></div>
+    </div>
+  </div>
+</footer>
+
+<script src="catalog.js"></script>
+<script>
+(() => {
+  const C = window.CATALOG;
+  const gh = `https://github.com/${C.owner}`;
+  const colors = { "System": "var(--blue)", "Productivity": "var(--mint)", "Files & Code": "var(--violet)", "Life & Creativity": "var(--amber)" };
+  const tints = { "System": "rgba(115,168,255,.12)", "Productivity": "rgba(107,227,168,.10)", "Files & Code": "rgba(191,140,255,.12)", "Life & Creativity": "rgba(255,181,71,.11)" };
+  const links = {
+    "suite": `${gh}/${C.launcherRepo}`,
+    "launcher-download": `${gh}/${C.launcherRepo}/releases/latest`,
+    "issues": `${gh}/${C.launcherRepo}/issues`,
+  };
+  document.querySelectorAll("[data-gh]").forEach(a => { a.href = links[a.dataset.gh]; });
+  document.getElementById("count").textContent = C.apps.length;
+
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const icon = a => `icons/${a.repo}.png`;
+
+  // Marquee: the icon list twice, so the loop is seamless.
+  const strip = C.apps.map(a => `<img src="${icon(a)}" alt="" title="${esc(a.name)}">`).join("");
+  document.getElementById("marquee").innerHTML = strip + strip;
+
+  const codeSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>';
+  const dlSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg>';
+
+  const grid = document.getElementById("grid");
+  const render = filter => {
+    const list = C.apps.filter(a => filter === "All" || a.category === filter);
+    grid.innerHTML = list.map((a, i) => `
+      <article class="card" style="--tint:${tints[a.category] || tints["System"]}">
+        <span class="num mono">${String(i + 1).padStart(2, "0")}</span>
+        <div class="card-top">
+          <img src="${icon(a)}" alt="" loading="lazy" width="56" height="56">
+          <div><h3>${esc(a.name)}</h3><span class="pill" style="--c:${colors[a.category] || "var(--muted)"}">${esc(a.category)}</span></div>
+        </div>
+        <p>${esc(a.tagline)} ${esc(a.description)}</p>
+        <div class="card-foot">
+          <div class="tags"><span class="tag">macOS ${esc(a.minOS)}+</span><span class="tag">MIT</span></div>
+          <div class="card-links">
+            <a class="icon-btn" href="${gh}/${a.repo}" title="${esc(a.name)} source code" aria-label="${esc(a.name)} source code">${codeSvg}</a>
+            <a class="icon-btn" href="${gh}/${a.repo}/releases/latest" title="Download ${esc(a.name)}" aria-label="Download ${esc(a.name)}">${dlSvg}</a>
+          </div>
+        </div>
+      </article>`).join("");
+  };
+
+  const chips = document.getElementById("chips");
+  ["All", ...C.categories].forEach(c => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = c; b.setAttribute("aria-pressed", c === "All");
+    b.onclick = () => { chips.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === b)); render(c); };
+    chips.appendChild(b);
+  });
+  render("All");
+})();
+</script>
+</body>
+</html>
