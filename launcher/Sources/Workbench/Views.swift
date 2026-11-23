@@ -110,8 +110,12 @@ struct ContentView: View {
             HStack {
                 SectionLabel(number: String(format: "%02d", filtered.count), title: title)
                 Spacer()
-                if selection == .updates, !store.updatesAvailable.isEmpty {
-                    Button("Update All") { Task { await store.updateAll() } }.buttonStyle(PrimaryButtonStyle())
+                if selection == .updates {
+                    if let run = store.queueRun {
+                        QueueStatus(done: run.done, total: run.total)
+                    } else if !store.updatesAvailable.isEmpty {
+                        Button("Update All") { Task { await store.updateAll() } }.buttonStyle(PrimaryButtonStyle())
+                    }
                 }
             }
             if filtered.isEmpty {
@@ -152,7 +156,9 @@ struct Hero: View {
                     .lineSpacing(3)
                 HStack(spacing: 10) {
                     let updates = store.updatesAvailable.count
-                    if updates > 0 {
+                    if let run = store.queueRun {
+                        QueueStatus(done: run.done, total: run.total)
+                    } else if updates > 0 {
                         Button("Update \(updates) Tool\(updates == 1 ? "" : "s")") { Task { await store.updateAll() } }
                             .buttonStyle(PrimaryButtonStyle())
                     }
@@ -256,6 +262,14 @@ struct ActionRow: View {
                     if let progress { ProgressView(value: progress).tint(Theme.amber) }
                     else { ProgressView().progressViewStyle(.linear).tint(Theme.amber) }
                 }
+            case .queued(let position):
+                HStack(spacing: 5) {
+                    Image(systemName: "clock").font(.system(size: 11)).foregroundStyle(Theme.amber)
+                    Text(position == 1 ? "Up next" : "Queued · #\(position)").statusStyle()
+                }
+                Spacer()
+                Button("Remove") { store.dequeue(app) }.buttonStyle(AdaptiveSecondaryButtonStyle())
+                    .help("Take \(app.name) out of the update queue")
             }
         }
         .frame(height: 28)
@@ -415,5 +429,24 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 480)
         .padding(.vertical, 8)
+    }
+}
+
+
+/// Shown in place of the Update All button while the queue runs: "Updating 2 of 3…".
+struct QueueStatus: View {
+    let done: Int
+    let total: Int
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+            Text("Updating \(min(done + 1, total)) of \(total)…")
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(Theme.amber)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 12).frame(height: 30)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Updating \(min(done + 1, total)) of \(total)")
     }
 }

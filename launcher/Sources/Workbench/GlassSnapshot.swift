@@ -50,7 +50,7 @@ enum GlassSnapshot {
 
     private typealias CapFn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
 
-    private static func capture(_ window: NSWindow, to url: URL, activate: Bool = true) async {
+    static func capture(_ window: NSWindow, to url: URL, activate: Bool = true) async {
         if activate {
             for _ in 0..<30 where !(NSApp.isActive && window.isKeyWindow) {
                 NSApp.activate(ignoringOtherApps: true)

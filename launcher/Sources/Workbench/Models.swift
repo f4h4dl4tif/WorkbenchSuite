@@ -108,4 +108,5 @@ enum AppState: Equatable {
     case installed(String)
     case updateAvailable(from: String, to: String)
     case working(String, Double?)          // label, progress 0...1 (nil = indeterminate)
+    case queued(Int)                       // waiting in the update queue (1 = next)
 }

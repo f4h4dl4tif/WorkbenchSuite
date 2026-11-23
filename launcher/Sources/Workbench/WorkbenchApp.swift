@@ -12,7 +12,12 @@ struct WorkbenchApp: App {
                 .frame(minWidth: 960, minHeight: 640)
                 .preferredColorScheme(.dark)
                 .glassThemeRoot()
-                .task { if store.checkOnLaunch { await store.refresh() } }
+                .task {
+                    #if DEBUG
+                    if CommandLine.arguments.contains("--test-update-all") { await TestMode.runUpdateAll(store: store); return }
+                    #endif
+                    if store.checkOnLaunch { await store.refresh() }
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1180, height: 780)

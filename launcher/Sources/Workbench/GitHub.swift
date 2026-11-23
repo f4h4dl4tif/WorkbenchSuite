@@ -66,6 +66,9 @@ enum TokenStore {
     private static let service = "app.workbenchsuite.launcher.github"
 
     static func load() -> String? {
+        #if DEBUG
+        if let t = ProcessInfo.processInfo.environment["WORKBENCH_TEST_TOKEN"], !t.isEmpty { return t }
+        #endif
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                     kSecAttrService as String: service,
                                     kSecReturnData as String: true,

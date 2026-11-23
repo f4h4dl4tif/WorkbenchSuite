@@ -67,22 +67,61 @@ enum Installer {
         try fm.createDirectory(at: location, withIntermediateDirectories: true)
         let destination = location.appendingPathComponent(name)
 
-        for running in NSRunningApplication.runningApplications(withBundleIdentifier: bundleId) {
-            running.terminate()
-        }
-        let deadline = Date().addingTimeInterval(5)
-        while !NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).isEmpty, Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.2)
+        // Quit the running copy so the new one is what runs afterwards. Some tools (desktop widgets
+        // like Tickdesk and Calendesk) deliberately ignore a normal Quit, so fall back to a force quit.
+        let wasRunning = !NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).isEmpty
+        if wasRunning {
+            for running in NSRunningApplication.runningApplications(withBundleIdentifier: bundleId) { running.terminate() }
+            if !waitUntilQuit(bundleId, seconds: 4) {
+                for running in NSRunningApplication.runningApplications(withBundleIdentifier: bundleId) { running.forceTerminate() }
+                _ = waitUntilQuit(bundleId, seconds: 4)
+            }
         }
 
+        // Swap in the new copy without ever leaving a half-deleted app behind: copy the new app next
+        // to the old one, rename the old one aside, rename the new one into place, then discard the old
+        // one. If any step fails, the old app is put back exactly as it was.
         let staging = location.appendingPathComponent(".\(name).workbench-new")
+        let previous = location.appendingPathComponent(".\(name).workbench-old")
         try? fm.removeItem(at: staging)
-        try run("/usr/bin/ditto", [source.path, staging.path])
-        if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
-        try fm.moveItem(at: staging, to: destination)
+        try? fm.removeItem(at: previous)
+        do {
+            try run("/usr/bin/ditto", [source.path, staging.path])
+        } catch {
+            try? fm.removeItem(at: staging)
+            throw error
+        }
+        let hadOld = fm.fileExists(atPath: destination.path)
+        do {
+            if hadOld { try fm.moveItem(at: destination, to: previous) }
+            try fm.moveItem(at: staging, to: destination)
+        } catch {
+            if hadOld, !fm.fileExists(atPath: destination.path) { try? fm.moveItem(at: previous, to: destination) }
+            try? fm.removeItem(at: staging)
+            throw error
+        }
+        if hadOld, (try? fm.removeItem(at: previous)) == nil {
+            // Something inside the old copy can't be deleted; leave it in the Bin instead of in Applications.
+            try? fm.trashItem(at: previous, resultingItemURL: nil)
+        }
         // Downloads made by the launcher aren't quarantined, but clear it in case the archive carried it.
         _ = try? run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", destination.path])
+        // Bring it back if it was running, now on the new version (in the background).
+        if wasRunning {
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = false
+            NSWorkspace.shared.openApplication(at: destination, configuration: config) { _, _ in }
+        }
         return destination
+    }
+
+    private static func waitUntilQuit(_ bundleId: String, seconds: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while !NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).isEmpty {
+            if Date() >= deadline { return false }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        return true
     }
 
     private static func openPackage(_ pkg: URL) async throws -> Outcome {
@@ -134,6 +173,15 @@ enum Installer {
 
     static func locate(_ app: SuiteApp) -> InstalledApp? {
         let fm = FileManager.default
+        #if DEBUG
+        // Test mode: only look in the throwaway folder so tests never touch real installs.
+        if let root = TestMode.root {
+            let url = root.appendingPathComponent(app.app)
+            guard fm.fileExists(atPath: url.path) else { return nil }
+            let plist = NSDictionary(contentsOf: url.appendingPathComponent("Contents/Info.plist"))
+            return InstalledApp(url: url, version: plist?["CFBundleShortVersionString"] as? String ?? "?")
+        }
+        #endif
         var candidates = [
             URL(fileURLWithPath: "/Applications").appendingPathComponent(app.app),
             fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications").appendingPathComponent(app.app),

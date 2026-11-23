@@ -8,6 +8,14 @@ final class SuiteStore: ObservableObject {
     @Published private(set) var releaseErrors: [String: String] = [:]
     @Published private(set) var installed: [String: InstalledApp] = [:]
     @Published private(set) var jobs: [String: (label: String, progress: Double?)] = [:]
+    /// Tools waiting to be installed or updated, in order. One runs at a time; the rest wait here.
+    @Published private(set) var queue: [String] = []
+    /// Progress of the current queue run, for "Updating 2 of 3…".
+    @Published private(set) var queueRun: (done: Int, total: Int)?
+    private var queueWorker: Task<Void, Never>?
+    private var queueFailures: [String] = []
+    /// Failures from the last finished queue run (kept for the summary and for tests).
+    @Published private(set) var lastQueueFailures: [String] = []
     @Published private(set) var isRefreshing = false
     @Published private(set) var launcherUpdate: Release?
     @Published var alert: String?
@@ -43,6 +51,7 @@ final class SuiteStore: ObservableObject {
 
     func state(of app: SuiteApp) -> AppState {
         if let job = jobs[app.id] { return .working(job.label, job.progress) }
+        if let i = queue.firstIndex(of: app.id) { return .queued(i + 1) }
         let latest = releases[app.id]
         if let local = installed[app.id] {
             if let latest, Version.isNewer(latest.version, than: local.version) {
@@ -100,18 +109,74 @@ final class SuiteStore: ObservableObject {
 
     // MARK: Actions
 
+    /// Install or update one tool. It joins the queue, so it never runs alongside another install.
     func install(_ app: SuiteApp) async {
-        guard jobs[app.id] == nil else { return }
+        enqueue([app])
+        await queueWorker?.value
+    }
+
+    /// Update every tool that has an update, one after another, in the order shown.
+    func updateAll() async {
+        enqueue(updatesAvailable)
+        await queueWorker?.value
+    }
+
+    var isQueueRunning: Bool { queueWorker != nil }
+
+    /// Adds tools to the end of the queue (skipping any already queued or running) and starts it if idle.
+    func enqueue(_ apps: [SuiteApp]) {
+        let new = apps.map(\.id).filter { !queue.contains($0) && jobs[$0] == nil }
+        guard !new.isEmpty else { return }
+        queue.append(contentsOf: new)
+        if let run = queueRun { queueRun = (run.done, run.total + new.count) } else { queueRun = (0, new.count) }
+        guard queueWorker == nil else { return }
+        queueFailures = []
+        queueWorker = Task { [weak self] in
+            await self?.drainQueue()
+        }
+    }
+
+    /// Removes a tool that hasn't started yet from the queue.
+    func dequeue(_ app: SuiteApp) {
+        guard let i = queue.firstIndex(of: app.id) else { return }
+        queue.remove(at: i)
+        if let run = queueRun { queueRun = (run.done, max(run.done, run.total - 1)) }
+    }
+
+    private func drainQueue() async {
+        while !queue.isEmpty {
+            let id = queue.removeFirst()
+            if let app = apps.first(where: { $0.id == id }) {
+                if let failure = await performInstall(app) { queueFailures.append(failure) }
+            }
+            if let run = queueRun { queueRun = (run.done + 1, run.total) }
+        }
+        lastQueueFailures = queueFailures
+        queueWorker = nil
+        queueRun = nil
+        scanInstalled()
+        if queueFailures.count == 1 {
+            alert = queueFailures[0]
+        } else if queueFailures.count > 1 {
+            alert = "\(queueFailures.count) tools couldn't be updated:\n\n" + queueFailures.joined(separator: "\n")
+        }
+        queueFailures = []
+    }
+
+    /// Downloads and installs one tool. Returns a message if it failed; never stops the queue.
+    private func performInstall(_ app: SuiteApp) async -> String? {
+        guard jobs[app.id] == nil else { return nil }
         guard let release = releases[app.id], let asset = release.installAsset else {
-            alert = "\(app.name) has no macOS download yet."
-            return
+            return "\(app.name) has no macOS download yet."
         }
         if !app.minOSSatisfied {
-            alert = "\(app.name) needs macOS \(app.minOS) or later."
-            return
+            return "\(app.name) needs macOS \(app.minOS) or later."
         }
         jobs[app.id] = ("Downloading…", 0)
-        let location = (InstallLocation(rawValue: installLocation) ?? .applications).url
+        var location = (InstallLocation(rawValue: installLocation) ?? .applications).url
+        #if DEBUG
+        if let root = TestMode.root { location = root }
+        #endif
         let id = app.id
         do {
             let outcome = try await Installer.install(app: app, asset: asset, github: github, location: location) { p in
@@ -123,19 +188,19 @@ final class SuiteStore: ObservableObject {
             jobs[app.id] = nil
             scanInstalled()
             if case .handedToInstaller = outcome {
-                alert = "The \(app.name) installer is open. Follow its steps, then come back here."
+                return "The \(app.name) installer is open. Follow its steps, then come back here."
             }
+            return nil
         } catch Installer.Failure.command(let message) where message.contains("Permission denied") || message.contains("Operation not permitted") {
             jobs[app.id] = nil
-            alert = "Couldn't write to \(location.path). Choose ~/Applications in Settings, or install from the release page."
+            return "\(app.name): couldn't write to \(location.path). Allow Workbench under System Settings › Privacy & Security › App Management, choose ~/Applications in Settings, or install from the release page."
+        } catch let error as CocoaError where [.fileWriteNoPermission, .fileReadNoPermission].contains(error.code) {
+            jobs[app.id] = nil
+            return "\(app.name): couldn't replace it in \(location.path), so the current version was kept. Allow Workbench under System Settings › Privacy & Security › App Management, or choose ~/Applications in Settings."
         } catch {
             jobs[app.id] = nil
-            alert = "\(app.name): \(error.localizedDescription)"
+            return "\(app.name): \(error.localizedDescription)"
         }
-    }
-
-    func updateAll() async {
-        for app in updatesAvailable { await install(app) }
     }
 
     func open(_ app: SuiteApp) {
