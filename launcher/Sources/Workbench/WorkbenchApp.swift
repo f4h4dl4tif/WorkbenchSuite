@@ -11,6 +11,7 @@ struct WorkbenchApp: App {
                 .environmentObject(store)
                 .frame(minWidth: 960, minHeight: 640)
                 .preferredColorScheme(.dark)
+                .glassThemeRoot()
                 .task { if store.checkOnLaunch { await store.refresh() } }
         }
         .windowStyle(.hiddenTitleBar)
@@ -23,7 +24,7 @@ struct WorkbenchApp: App {
         }
 
         Settings {
-            SettingsView().environmentObject(store).preferredColorScheme(.dark)
+            SettingsView().environmentObject(store).preferredColorScheme(.dark).glassThemeRoot()
         }
     }
 }
@@ -53,6 +54,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        #if DEBUG
+        if let i = args.firstIndex(of: "--glass-snapshot"), args.indices.contains(i + 1) {
+            let dir = URL(fileURLWithPath: args[i + 1])
+            Task { @MainActor in await GlassSnapshot.run(dir) }
+            return
+        }
+        #endif
         guard let i = args.firstIndex(of: "--snapshot"), args.indices.contains(i + 1) else { return }
         let path = args[i + 1]
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {

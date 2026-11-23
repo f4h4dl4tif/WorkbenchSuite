@@ -10,6 +10,7 @@ struct ContentView: View {
     @State private var selection: SidebarItem? = .all
     @State private var search = ""
     @State private var detail: SuiteApp?
+    @Environment(\.glassOn) private var glassOn
 
     var body: some View {
         NavigationSplitView {
@@ -25,7 +26,7 @@ struct ContentView: View {
                 .frame(maxWidth: 1240, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
-            .background(Theme.background)
+            .background(SuiteBackground(glass: glassOn))
             .searchable(text: $search, placement: .toolbar, prompt: "Search tools")
             .toolbar {
                 ToolbarItem {
@@ -39,6 +40,11 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .sheet(item: $detail) { app in AppDetailView(app: app).environmentObject(store) }
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: .glassSnapshotDetail)) { n in
+            detail = n.object == nil ? nil : store.apps.first
+        }
+        #endif
         .alert("Workbench", isPresented: Binding(get: { store.alert != nil }, set: { if !$0 { store.alert = nil } })) {
             Button("OK") { store.alert = nil }
         } message: { Text(store.alert ?? "") }
@@ -131,6 +137,7 @@ struct ContentView: View {
 
 struct Hero: View {
     @EnvironmentObject var store: SuiteStore
+    @Environment(\.glassOn) private var glassOn
 
     var body: some View {
         HStack(alignment: .center, spacing: 24) {
@@ -150,7 +157,7 @@ struct Hero: View {
                             .buttonStyle(PrimaryButtonStyle())
                     }
                     Link(destination: store.suiteRepoURL) { Text("View on GitHub") }
-                        .buttonStyle(SecondaryButtonStyle())
+                        .buttonStyle(AdaptiveSecondaryButtonStyle())
                 }
                 .padding(.top, 6)
             }
@@ -160,9 +167,10 @@ struct Hero: View {
         }
         .padding(28)
         .frame(minHeight: 250)
-        .background(LinearGradient(colors: [Theme.card, Theme.background], startPoint: .top, endPoint: .bottom),
+        .background(glassOn ? AnyShapeStyle(Color.clear) : AnyShapeStyle(LinearGradient(colors: [Theme.card, Theme.background], startPoint: .top, endPoint: .bottom)),
                     in: RoundedRectangle(cornerRadius: 22))
-        .overlay(RoundedRectangle(cornerRadius: 22).stroke(Theme.border))
+        .glassPanel(glassOn, in: RoundedRectangle(cornerRadius: 22))
+        .overlay(RoundedRectangle(cornerRadius: 22).stroke(glassOn ? Color.clear : Theme.border))
     }
 
     /// A loose cluster of tool icons in the hero's corner.
@@ -182,6 +190,7 @@ struct AppCard: View {
     @EnvironmentObject var store: SuiteStore
     let app: SuiteApp
     @State private var hovering = false
+    @Environment(\.glassOn) private var glassOn
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -202,8 +211,9 @@ struct AppCard: View {
         }
         .padding(16)
         .frame(minHeight: 168)
-        .background(hovering ? Theme.cardHover : Theme.card, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(hovering ? Theme.amber.opacity(0.35) : Theme.border))
+        .background(glassOn ? Color.clear : (hovering ? Theme.cardHover : Theme.card), in: RoundedRectangle(cornerRadius: 16))
+        .glassPanel(glassOn, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(hovering ? Theme.amber.opacity(0.35) : (glassOn ? Color.clear : Theme.border)))
         .offset(y: hovering ? -2 : 0)
         .animation(.easeOut(duration: 0.15), value: hovering)
         .onHover { hovering = $0 }
@@ -234,11 +244,11 @@ struct ActionRow: View {
                 Label("v\(v)", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon)
                     .font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.mint)
                 Spacer()
-                Button("Open") { store.open(app) }.buttonStyle(SecondaryButtonStyle())
+                Button("Open") { store.open(app) }.buttonStyle(AdaptiveSecondaryButtonStyle())
             case .updateAvailable(let from, let to):
                 Text("v\(from) → v\(to)").statusStyle()
                 Spacer()
-                Button("Open") { store.open(app) }.buttonStyle(SecondaryButtonStyle())
+                Button("Open") { store.open(app) }.buttonStyle(AdaptiveSecondaryButtonStyle())
                 Button("Update") { Task { await store.install(app) } }.buttonStyle(PrimaryButtonStyle())
             case .working(let label, let progress):
                 VStack(alignment: .leading, spacing: 5) {
@@ -260,6 +270,7 @@ private extension Text {
 
 struct LauncherUpdateBanner: View {
     let release: Release
+    @Environment(\.glassOn) private var glassOn
     var body: some View {
         HStack {
             Image(systemName: "sparkles").foregroundStyle(Theme.amber)
@@ -268,7 +279,8 @@ struct LauncherUpdateBanner: View {
             Link("Download", destination: release.htmlURL).buttonStyle(PrimaryButtonStyle())
         }
         .padding(12)
-        .background(Theme.amber.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.amber.opacity(glassOn ? 0 : 0.08), in: RoundedRectangle(cornerRadius: 12))
+        .glassPanel(glassOn, in: RoundedRectangle(cornerRadius: 12), tint: Theme.amber.opacity(0.18))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.amber.opacity(0.25)))
     }
 }
@@ -322,10 +334,10 @@ struct AppDetailView: View {
 
             HStack(spacing: 10) {
                 Link(destination: store.repoURL(app)) { Label("Source Code", systemImage: "chevron.left.forwardslash.chevron.right") }
-                    .buttonStyle(SecondaryButtonStyle())
+                    .buttonStyle(AdaptiveSecondaryButtonStyle())
                 if store.installed[app.id] != nil {
-                    Button("Show in Finder") { store.reveal(app) }.buttonStyle(SecondaryButtonStyle())
-                    Button("Uninstall…") { confirmUninstall = true }.buttonStyle(SecondaryButtonStyle())
+                    Button("Show in Finder") { store.reveal(app) }.buttonStyle(AdaptiveSecondaryButtonStyle())
+                    Button("Uninstall…") { confirmUninstall = true }.buttonStyle(AdaptiveSecondaryButtonStyle())
                 }
                 Spacer()
                 ActionRow(app: app).frame(maxWidth: 300)
@@ -372,6 +384,7 @@ struct SettingsView: View {
     @EnvironmentObject var store: SuiteStore
     @AppStorage("installLocation") private var installLocation = SuiteStore.InstallLocation.applications.rawValue
     @AppStorage("checkOnLaunch") private var checkOnLaunch = true
+    @AppStorage(GlassTheme.key) private var glassTheme = false
     @State private var token = TokenStore.load() ?? ""
 
     var body: some View {
@@ -380,6 +393,14 @@ struct SettingsView: View {
                 ForEach(SuiteStore.InstallLocation.allCases) { Text($0.title).tag($0.rawValue) }
             }
             Toggle("Check for updates when Workbench opens", isOn: $checkOnLaunch)
+            Section {
+                Toggle(isOn: $glassTheme) {
+                    Text("Liquid Glass theme")
+                    Text(GlassTheme.supported ? "Tool cards, the welcome panel and buttons use Apple's Liquid Glass."
+                                              : "Requires macOS 26.")
+                }
+                .disabled(!GlassTheme.supported)
+            } header: { Text("Appearance") }
             Section {
                 SecureField("Personal access token (optional)", text: $token)
                     .onSubmit { TokenStore.save(token) }
