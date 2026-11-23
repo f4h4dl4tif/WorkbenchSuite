@@ -5,3 +5,4 @@ dist/
 .swiftpm/
 xcuserdata/
 launcher/Resources/AppIcon.icns
+publish-nightly.log

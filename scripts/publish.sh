@@ -2,6 +2,7 @@
 # Creates a GitHub repo for every tool (and this suite repo), pushes it, and publishes a release
 # with the tool's installers so the launcher and website can find them.
 #   VISIBILITY=private|public (default private)
+#   ONLY=<repo>  publish just that one repo (a tool's folder name, or WorkbenchSuite)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SUITE="$ROOT/WorkbenchSuite"
@@ -44,6 +45,7 @@ release() { # dir repo version files...
 for dir in "$ROOT"/*/; do
   repo=$(basename "$dir")
   grep -q "\"repo\": \"$repo\"" "$SUITE/catalog.json" || continue
+  [ -n "${ONLY:-}" ] && [ "$repo" != "$ONLY" ] && continue
   echo "== $repo"
   ensure_repo "$dir" "$repo" "$(json "$repo" tagline)"
 
@@ -65,6 +67,7 @@ for dir in "$ROOT"/*/; do
   release "$dir" "$repo" "$version" "${files[@]}"
 done
 
+if [ -n "${ONLY:-}" ] && [ "$ONLY" != WorkbenchSuite ]; then exit 0; fi
 echo "== WorkbenchSuite"
 cd "$SUITE"
 [ -d .git ] || git init -q -b main
