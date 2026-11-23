@@ -98,6 +98,17 @@
       "description": "Live P-core and E-core load, GPU, memory pressure, power and thermals in the menu bar, plus per-process CPU, energy and wakeups."
     },
     {
+      "id": "pressly",
+      "name": "Pressly",
+      "repo": "Pressly",
+      "app": "Pressly.app",
+      "bundleId": "app.pressly.Pressly",
+      "category": "System",
+      "minOS": "14",
+      "tagline": "Satisfying mechanical keyboard sounds with every keystroke.",
+      "description": "A menu-bar app that plays studio-recorded switch sounds as you type, from NovelKeys Creams to Holy Pandas and buckling springs, with key-up sounds, spatial audio, sleep triggers and typing stats."
+    },
+    {
       "id": "spyglass",
       "name": "Spyglass",
       "repo": "Spyglass",

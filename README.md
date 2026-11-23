@@ -20,6 +20,7 @@ Download the latest **Workbench** from [Releases](../../releases/latest). The `.
 | [Tapwise](../../../Tapwise) | Double-tap your MacBook to trigger 50 actions | System |
 | [Wattline](../../../Wattline) | See what each app costs your battery | System |
 | [SiliconScope](../../../SiliconScope) | An Apple silicon performance observatory | System |
+| [Pressly](../../../Pressly) | Mechanical keyboard sounds with every keystroke | System |
 | [Spyglass](../../../Spyglass) | A file browser that sits alongside Finder | Files & Code |
 | [FolderPilot](../../../FolderPilot) | Rules that rename, tag and file things for you | Files & Code |
 | [Padwise](../../../Padwise) | A fast, native source-code editor | Files & Code |
