@@ -15,8 +15,10 @@ struct WorkbenchApp: App {
                 .task {
                     #if DEBUG
                     if CommandLine.arguments.contains("--test-update-all") { await TestMode.runUpdateAll(store: store); return }
+                    if CommandLine.arguments.contains("--test-cache") { await TestMode.runCacheTest(store: store); return }
+                    if CommandLine.arguments.contains("--test-unauth") { await TestMode.runUnauthTest(store: store); return }
                     #endif
-                    if store.checkOnLaunch { await store.refresh() }
+                    if store.checkOnLaunch { await store.refresh(force: false) }
                 }
         }
         .windowStyle(.hiddenTitleBar)
@@ -60,6 +62,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         #if DEBUG
+        if let i = args.firstIndex(of: "--test-permissions"), args.indices.contains(i + 1) {
+            TestMode.runPermissionTest(dir: URL(fileURLWithPath: args[i + 1]))
+        }
         if let i = args.firstIndex(of: "--glass-snapshot"), args.indices.contains(i + 1) {
             let dir = URL(fileURLWithPath: args[i + 1])
             Task { @MainActor in await GlassSnapshot.run(dir) }

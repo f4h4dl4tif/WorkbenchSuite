@@ -19,6 +19,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     if let update = store.launcherUpdate { LauncherUpdateBanner(release: update) }
+                    if let until = store.rateLimitedUntil { RateLimitNote(until: until) }
                     if selection == .all && search.isEmpty { Hero() }
                     lineup
                 }
@@ -34,7 +35,7 @@ struct ContentView: View {
                         if store.isRefreshing { ProgressView().controlSize(.small) }
                         else { Label("Check for Updates", systemImage: "arrow.clockwise") }
                     }
-                    .help("Check GitHub for new releases")
+                    .help(store.lastChecked.map { "Check GitHub for new releases (last checked \($0.formatted(.relative(presentation: .named))))" } ?? "Check GitHub for new releases")
                 }
             }
         }
@@ -45,8 +46,14 @@ struct ContentView: View {
             detail = n.object == nil ? nil : store.apps.first
         }
         #endif
-        .alert("Workbench", isPresented: Binding(get: { store.alert != nil }, set: { if !$0 { store.alert = nil } })) {
-            Button("OK") { store.alert = nil }
+        .alert("Workbench", isPresented: Binding(get: { store.alert != nil }, set: { if !$0 { store.alert = nil; store.needsAppManagement = false } })) {
+            if store.needsAppManagement {
+                Button("Open App Management Settings") {
+                    NSWorkspace.shared.open(Permission.appManagementSettings)
+                    store.alert = nil; store.needsAppManagement = false
+                }
+            }
+            Button("OK") { store.alert = nil; store.needsAppManagement = false }
         } message: { Text(store.alert ?? "") }
     }
 
@@ -448,5 +455,23 @@ struct QueueStatus: View {
         .padding(.horizontal, 12).frame(height: 30)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Updating \(min(done + 1, total)) of \(total)")
+    }
+}
+
+
+/// Shown while GitHub's API limit is used up: results are the saved ones, updates still work.
+struct RateLimitNote: View {
+    let until: Date
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "clock.arrow.circlepath").foregroundStyle(Theme.amber)
+            Text("Showing saved results. GitHub's hourly check limit resets at \(until.formatted(date: .omitted, time: .shortened)); new versions are still detected from the website. Add a token in Settings to raise the limit.")
+                .font(.system(size: 12)).foregroundStyle(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.04)))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.white.opacity(0.08)))
     }
 }

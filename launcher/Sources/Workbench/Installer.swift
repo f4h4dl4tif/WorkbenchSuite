@@ -7,9 +7,11 @@ enum Installer {
     enum Outcome { case installed(URL), handedToInstaller }
 
     enum Failure: LocalizedError {
-        case noAsset, appNotFound(String), command(String)
+        case noAsset, appNotFound(String), command(String), cancelled(String), blockedByMacOS(String)
         var errorDescription: String? {
             switch self {
+            case .cancelled(let name): return "\(name) wasn't changed because the password request was cancelled."
+            case .blockedByMacOS(let name): return "macOS blocked Workbench from changing \(name). Allow Workbench under System Settings › Privacy & Security › App Management, then try again."
             case .noAsset: return "This release has no macOS download."
             case .appNotFound(let name): return "Couldn't find \(name) inside the download."
             case .command(let message): return message
@@ -85,24 +87,35 @@ enum Installer {
         let previous = location.appendingPathComponent(".\(name).workbench-old")
         try? fm.removeItem(at: staging)
         try? fm.removeItem(at: previous)
-        do {
-            try run("/usr/bin/ditto", [source.path, staging.path])
-        } catch {
-            try? fm.removeItem(at: staging)
-            throw error
-        }
         let hadOld = fm.fileExists(atPath: destination.path)
         do {
-            if hadOld { try fm.moveItem(at: destination, to: previous) }
-            try fm.moveItem(at: staging, to: destination)
-        } catch {
-            if hadOld, !fm.fileExists(atPath: destination.path) { try? fm.moveItem(at: previous, to: destination) }
-            try? fm.removeItem(at: staging)
-            throw error
+            do {
+                try run("/usr/bin/ditto", [source.path, staging.path])
+            } catch {
+                try? fm.removeItem(at: staging)
+                throw error
+            }
+            do {
+                if hadOld { try fm.moveItem(at: destination, to: previous) }
+                try fm.moveItem(at: staging, to: destination)
+            } catch {
+                if hadOld, !fm.fileExists(atPath: destination.path) { try? fm.moveItem(at: previous, to: destination) }
+                try? fm.removeItem(at: staging)
+                throw error
+            }
+        } catch where Permission.kind(of: error) == .needsAdmin {
+            // The folder or the old copy belongs to another user (apps installed from a .pkg are owned by
+            // root). Ask for an administrator password, for this one app only, and do the swap that way.
+            try Permission.replaceAsAdmin(source: source, destination: destination, previous: previous,
+                                          appName: (name as NSString).deletingPathExtension, folder: location)
+        } catch where Permission.kind(of: error) == .blockedByMacOS {
+            throw Failure.blockedByMacOS((name as NSString).deletingPathExtension)
         }
-        if hadOld, (try? fm.removeItem(at: previous)) == nil {
-            // Something inside the old copy can't be deleted; leave it in the Bin instead of in Applications.
-            try? fm.trashItem(at: previous, resultingItemURL: nil)
+        if hadOld, fm.fileExists(atPath: previous.path), (try? fm.removeItem(at: previous)) == nil {
+            // The old copy belongs to root (installed from a .pkg). The new one is already in place, so
+            // ask once to clear the old one away; if that's declined, put it in the Bin if possible.
+            do { try Permission.removeAsAdmin(previous, reason: "remove the previous version of \((name as NSString).deletingPathExtension)") }
+            catch { try? fm.trashItem(at: previous, resultingItemURL: nil) }
         }
         // Downloads made by the launcher aren't quarantined, but clear it in case the archive carried it.
         _ = try? run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", destination.path])

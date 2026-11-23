@@ -54,6 +54,13 @@ struct Release: Codable {
 
     var version: String { tagName.trimmingCharacters(in: CharacterSet(charactersIn: "vV")) }
 
+    /// A release known only by its tag (from the website fallback); assets are fetched at install time.
+    static func tagOnly(_ tag: String, owner: String, repo: String) -> Release {
+        Release(tagName: tag, name: nil, body: nil,
+                htmlURL: URL(string: "https://github.com/\(owner)/\(repo)/releases/tag/\(tag)")!,
+                publishedAt: nil, assets: [])
+    }
+
     /// The best asset for installing: a disk image, then a zip, then an installer package.
     var installAsset: Asset? {
         let mac = assets.filter { !$0.name.localizedCaseInsensitiveContains("windows") }
