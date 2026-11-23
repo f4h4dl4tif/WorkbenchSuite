@@ -48,10 +48,12 @@ struct ContentView: View {
         List(selection: $selection) {
             Section("Library") {
                 Label("All Tools", systemImage: "square.grid.2x2").tag(SidebarItem.all)
-                Label("Installed", systemImage: "checkmark.circle").tag(SidebarItem.installed)
+                Label("Installed", systemImage: "checkmark.circle")
                     .badge(store.installed.count)
-                Label("Updates", systemImage: "arrow.down.circle").tag(SidebarItem.updates)
+                    .tag(SidebarItem.installed)
+                Label("Updates", systemImage: "arrow.down.circle")
                     .badge(store.updatesAvailable.count)
+                    .tag(SidebarItem.updates)
             }
             Section("Categories") {
                 ForEach(store.catalog.categories, id: \.self) { c in
