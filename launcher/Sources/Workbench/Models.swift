@@ -106,6 +106,16 @@ enum Version {
 struct InstalledApp {
     let url: URL
     let version: String
+    /// False for a copy found somewhere else (a project's build folder, Downloads…). Updating installs
+    /// a proper copy into Applications instead of overwriting that one.
+    var inApplications: Bool = true
+
+    /// Short description of where an out-of-Applications copy lives, e.g. "Calendesk/build".
+    var shortLocation: String {
+        let parent = url.deletingLastPathComponent()
+        let parts = parent.pathComponents.suffix(2)
+        return parts.joined(separator: "/")
+    }
 }
 
 enum AppState: Equatable {

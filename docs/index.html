@@ -94,6 +94,9 @@
   .card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; position: relative; z-index: 1; }
   .tags { display: flex; gap: 6px; flex-wrap: wrap; }
   .tag { font-size: 11px; color: var(--faint); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; }
+  .tag.ver { color: var(--amber); border-color: rgba(255,181,71,.35); background: rgba(255,181,71,.08); font-weight: 600; }
+  .launcher-ver { margin-top: 12px; font-size: 13px; color: var(--faint); }
+  .launcher-ver b { color: var(--amber); font-weight: 600; }
   .card-links { display: flex; gap: 6px; }
   .icon-btn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; border: 1px solid var(--border); color: var(--muted); transition: all .15s; }
   .icon-btn:hover { color: var(--text); border-color: var(--border-strong); background: rgba(255,255,255,.05); }
@@ -204,6 +207,7 @@
           <li>New tools show up automatically as the suite grows</li>
         </ul>
         <a class="btn btn-primary" data-gh="launcher-download" href="#">Download Workbench</a>
+        <p class="launcher-ver" id="launcher-ver" hidden></p>
       </div>
       <img class="shot" src="launcher.jpg" alt="" loading="lazy">
     </div>
@@ -228,9 +232,13 @@
 </footer>
 
 <script src="catalog.js"></script>
+<script src="releases.js"></script>
 <script>
 (() => {
   const C = window.CATALOG;
+  const R = (window.RELEASES && window.RELEASES.releases) || {};
+  const fmtDate = d => d ? new Date(d.length > 10 ? d : d + "T12:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
+  const fmtSize = b => b ? (b / 1048576).toFixed(1) + " MB" : "";
   const gh = `https://github.com/${C.owner}`;
   const colors = { "System": "var(--blue)", "Productivity": "var(--mint)", "Files & Code": "var(--violet)", "Life & Creativity": "var(--amber)" };
   const tints = { "System": "rgba(115,168,255,.12)", "Productivity": "rgba(107,227,168,.10)", "Files & Code": "rgba(191,140,255,.12)", "Life & Creativity": "rgba(255,181,71,.11)" };
@@ -239,7 +247,14 @@
     "launcher-download": `${gh}/${C.launcherRepo}/releases/latest`,
     "issues": `${gh}/${C.launcherRepo}/issues`,
   };
+  const own = R[C.launcherRepo];
+  if (own && own.download) links["launcher-download"] = own.download;
   document.querySelectorAll("[data-gh]").forEach(a => { a.href = links[a.dataset.gh]; });
+  if (own) {
+    const v = document.getElementById("launcher-ver");
+    v.innerHTML = `Latest: <b>Workbench ${own.version}</b>${own.date ? " · " + fmtDate(own.date) : ""}${own.size ? " · " + fmtSize(own.size) : ""} · <a href="${own.url}">release notes</a>`;
+    v.hidden = false;
+  }
   document.getElementById("count").textContent = C.apps.length;
 
   const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -264,10 +279,10 @@
         </div>
         <p>${esc(a.tagline)} ${esc(a.description)}</p>
         <div class="card-foot">
-          <div class="tags"><span class="tag">macOS ${esc(a.minOS)}+</span><span class="tag">MIT</span></div>
+          <div class="tags">${R[a.repo] ? `<a class="tag ver" href="${R[a.repo].url}" title="Released ${esc(fmtDate(R[a.repo].date))}: see what's new">v${esc(R[a.repo].version)}</a>` : ""}<span class="tag">macOS ${esc(a.minOS)}+</span><span class="tag">MIT</span></div>
           <div class="card-links">
             <a class="icon-btn" href="${gh}/${a.repo}" title="${esc(a.name)} source code" aria-label="${esc(a.name)} source code">${codeSvg}</a>
-            <a class="icon-btn" href="${gh}/${a.repo}/releases/latest" title="Download ${esc(a.name)}" aria-label="Download ${esc(a.name)}">${dlSvg}</a>
+            <a class="icon-btn" href="${(R[a.repo] && R[a.repo].download) || `${gh}/${a.repo}/releases/latest`}" title="Download ${esc(a.name)}${R[a.repo] ? " " + esc(R[a.repo].version) + (R[a.repo].size ? " (" + fmtSize(R[a.repo].size) + ")" : "") : ""}" aria-label="Download ${esc(a.name)}">${dlSvg}</a>
           </div>
         </div>
       </article>`).join("");

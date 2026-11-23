@@ -184,32 +184,77 @@ enum Installer {
 
     // MARK: - Installed apps
 
-    static func locate(_ app: SuiteApp) -> InstalledApp? {
+    /// Finds an installed copy of a tool anywhere on the Mac, preferring Applications.
+    /// Sources: the usual Applications folders, every copy LaunchServices knows about, running apps,
+    /// and Spotlight results passed in by the caller.
+    static func locate(_ app: SuiteApp, extra: [URL] = []) -> InstalledApp? {
         let fm = FileManager.default
         #if DEBUG
-        // Test mode: only look in the throwaway folder so tests never touch real installs.
+        // Test mode: only look in the throwaway folder (plus test extras) so tests never touch real installs.
         if let root = TestMode.root {
             let url = root.appendingPathComponent(app.app)
-            guard fm.fileExists(atPath: url.path) else { return nil }
-            let plist = NSDictionary(contentsOf: url.appendingPathComponent("Contents/Info.plist"))
-            return InstalledApp(url: url, version: plist?["CFBundleShortVersionString"] as? String ?? "?")
+            if fm.fileExists(atPath: url.path) { return InstalledApp(url: url, version: version(of: url) ?? "?", inApplications: true) }
+            let others = extra.filter { fm.fileExists(atPath: $0.path) && bundleId(of: $0) == app.bundleId }
+            return others.first.map { InstalledApp(url: $0, version: version(of: $0) ?? "?", inApplications: false) }
         }
         #endif
-        var candidates = [
-            URL(fileURLWithPath: "/Applications").appendingPathComponent(app.app),
-            fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications").appendingPathComponent(app.app),
-        ]
-        if let byId = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleId) {
-            candidates.append(byId)
+        let home = fm.homeDirectoryForCurrentUser
+        let appFolders = [URL(fileURLWithPath: "/Applications"), home.appendingPathComponent("Applications")]
+        var candidates: [URL] = []
+        for folder in appFolders {
+            candidates.append(folder.appendingPathComponent(app.app))
+            candidates.append(folder.appendingPathComponent("Utilities").appendingPathComponent(app.app))
         }
-        for url in candidates where fm.fileExists(atPath: url.path) {
-            // Ignore copies still sitting inside a project's build folder.
-            if url.path.contains("/build/") || url.path.contains("/.build/") || url.path.contains("/dist/") { continue }
-            let plist = NSDictionary(contentsOf: url.appendingPathComponent("Contents/Info.plist"))
-            let version = plist?["CFBundleShortVersionString"] as? String ?? "?"
-            return InstalledApp(url: url, version: version)
+        candidates += NSWorkspace.shared.urlsForApplications(withBundleIdentifier: app.bundleId)
+        let running = NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleId).compactMap(\.bundleURL)
+        candidates += running
+        candidates += extra
+
+        var seen = Set<String>()
+        var copies: [InstalledApp] = []
+        for url in candidates {
+            let path = url.standardizedFileURL.resolvingSymlinksInPath().path
+            guard seen.insert(path).inserted, fm.fileExists(atPath: path), isUsableLocation(path, home: home.path),
+                  bundleId(of: url) == app.bundleId else { continue }
+            let inApps = appFolders.contains { path.hasPrefix($0.resolvingSymlinksInPath().path + "/") }
+            copies.append(InstalledApp(url: URL(fileURLWithPath: path), version: version(of: url) ?? "?", inApplications: inApps))
         }
-        return nil
+        let runningPaths = Set(running.map { $0.standardizedFileURL.resolvingSymlinksInPath().path })
+        // Applications first; then a copy that's running right now; then the newest version.
+        return copies.max { a, b in
+            if a.inApplications != b.inApplications { return !a.inApplications }
+            let ar = runningPaths.contains(a.url.path), br = runningPaths.contains(b.url.path)
+            if ar != br { return !ar }
+            return Version.isNewer(b.version, than: a.version)
+        }
+    }
+
+    /// Skips copies that aren't really "installed": mounted disk images, the Bin, temporary folders,
+    /// SwiftPM debug bundles, apps nested inside other apps, and Workbench's own staging copies.
+    static func isUsableLocation(_ path: String, home: String) -> Bool {
+        let blocked = ["/Volumes/", "/private/tmp/", "/tmp/", "/private/var/folders/", "/var/folders/", home + "/.Trash/", "/.Trash/"]
+        if blocked.contains(where: { path.hasPrefix($0) }) || path.contains("/.Trashes/") { return false }
+        if path.contains("/.build/") || path.contains(".workbench-new") || path.contains(".workbench-old") { return false }
+        // An .app inside another .app's Contents (helpers, login items) isn't the tool itself.
+        let inner = (path as NSString).deletingLastPathComponent
+        if inner.contains(".app/") { return false }
+        return true
+    }
+
+    static func bundleId(of url: URL) -> String? {
+        NSDictionary(contentsOf: url.appendingPathComponent("Contents/Info.plist"))?["CFBundleIdentifier"] as? String
+    }
+
+    static func version(of url: URL) -> String? {
+        NSDictionary(contentsOf: url.appendingPathComponent("Contents/Info.plist"))?["CFBundleShortVersionString"] as? String
+    }
+
+    /// One Spotlight query for every tool's bundle ID; returns all matching app bundles.
+    static func spotlightCopies(of bundleIds: [String]) -> [URL] {
+        guard !bundleIds.isEmpty else { return [] }
+        let query = bundleIds.map { "kMDItemCFBundleIdentifier == '\($0)'" }.joined(separator: " || ")
+        guard let out = try? run("/usr/bin/mdfind", ["-0", query]) else { return [] }
+        return out.split(separator: "\0").map { URL(fileURLWithPath: String($0)) }.filter { $0.pathExtension == "app" }
     }
 }
 

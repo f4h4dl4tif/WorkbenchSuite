@@ -60,19 +60,18 @@ enum TestMode {
         }
         check(store.releaseErrors.values.isEmpty, "no error shown on any card (\(store.releaseErrors.count) errors)")
 
-        // Installing a tool known only from the website while still limited explains itself.
+        // Installing a tool known only from the website while still limited: the download is found
+        // by its packaged file name on github.com, so it installs without any API request.
         if let juxta = store.apps.first(where: { $0.repo == "Juxta" }) {
-            await store.install(juxta)
-            log("install while limited -> \(store.lastQueueFailures.first ?? "no failure")")
-            check(store.lastQueueFailures.first?.contains("download limit") == true, "a clear limit message instead of a failure")
-            store.alert = nil
-            // Limit over: the same install fetches the downloads and works.
-            unsetenv("WORKBENCH_TEST_RATELIMIT")
-            store.debugClearRateLimit()
+            GitHub.apiRequestCount = 0
             await store.install(juxta)
             store.scanInstalled()
-            check(store.installed[juxta.id]?.version == store.releases[juxta.id]?.version,
-                  "after the limit resets, installing a website-only release works (installed v\(store.installed[juxta.id]?.version ?? "none"))")
+            log("install while limited -> \(store.lastQueueFailures.first ?? "no failure"), API requests \(GitHub.apiRequestCount)")
+            check(store.installed[juxta.id]?.version == store.releases[juxta.id]?.version && GitHub.apiRequestCount == 0,
+                  "a website-only release installs while the limit is used up (installed v\(store.installed[juxta.id]?.version ?? "none"))")
+            store.alert = nil
+            unsetenv("WORKBENCH_TEST_RATELIMIT")
+            store.debugClearRateLimit()
         }
         log(ok ? "CACHE TESTS PASSED" : "CACHE TESTS FAILED")
         exit(ok ? 0 : 1)
@@ -82,12 +81,16 @@ enum TestMode {
     static func runUnauthTest(store: SuiteStore) async {
         let start = Date()
         func log(_ s: String) { print("[\(String(format: "%.1f", Date().timeIntervalSince(start)))s] \(s)"); fflush(stdout) }
-        log("saved releases at launch: \(store.releases.count)")
+        log("saved releases at launch: \(store.releases.count); installed: \(store.installed.mapValues { "\($0.version) @ \($0.url.path)" })")
         GitHub.apiRequestCount = 0
         await store.refresh(force: false)
         log("automatic check: \(GitHub.apiRequestCount) API requests; releases \(store.releases.count)/\(store.apps.count); errors \(store.releaseErrors.count); limited until \(store.rateLimitedUntil.map { "\($0)" } ?? "no")")
         let partial = store.debugCache.entries.values.filter(\.partial).count
         log("versions from the website fallback: \(partial)")
+        for app in store.apps {
+            let i = store.installed[app.id]
+            log("  \(app.name.padding(toLength: 13, withPad: " ", startingAt: 0)) \(i.map { "v\($0.version) \($0.inApplications ? "Applications" : "elsewhere: \($0.url.path)")" } ?? "not installed")  -> \(store.state(of: app))")
+        }
         log("updates detected: \(store.updatesAvailable.map(\.name))")
         exit(store.releases.count == store.apps.count && store.releaseErrors.isEmpty ? 0 : 1)
     }
@@ -134,6 +137,9 @@ enum TestMode {
         let queued = store.updatesAvailable.map(\.name)
         log("installed: \(store.installed.mapValues(\.version)), releases: \(store.releases.count), errors: \(Set(store.releaseErrors.values)), refreshing: \(store.isRefreshing)")
         log("updates available: \(queued)")
+        for app in store.apps where store.installed[app.id] != nil {
+            log("  detected \(app.name) v\(store.installed[app.id]!.version) \(store.installed[app.id]!.inApplications ? "in Applications" : "elsewhere")")
+        }
         guard !queued.isEmpty else { log("FAIL nothing to update"); exit(2) }
         // Watch state changes while Update All runs.
         var last: [String: String] = [:]
@@ -193,7 +199,7 @@ enum TestMode {
             let latest = store.releases[app.id]?.version ?? "?"
             let pass = v == latest
             ok = ok && pass
-            log("\(pass ? "PASS" : "FAIL") \(app.name): installed v\(v), latest v\(latest)")
+            log("\(pass ? "PASS" : "FAIL") \(app.name): installed v\(v), latest v\(latest)\(store.installed[app.id].map { $0.inApplications ? " (in Applications)" : " (elsewhere)" } ?? "")")
         }
         if let a = store.alert { log("alert: \(a)  [App Management button: \(store.needsAppManagement)]") }
         if !store.lastQueueFailures.isEmpty { log("reported failures: \(store.lastQueueFailures)") }

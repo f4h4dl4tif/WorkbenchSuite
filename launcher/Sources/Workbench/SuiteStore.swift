@@ -51,6 +51,7 @@ final class SuiteStore: ObservableObject {
         lastChecked = cache.entries.values.map(\.fetchedAt).max()
         if cache.isRateLimited() { rateLimitedUntil = cache.rateReset }
         scanInstalled()
+        Task { await scanWithSpotlight() }
         // Re-scan when the user returns to the launcher (they may have deleted or moved an app).
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification,
                                                                 object: nil, queue: .main) { [weak self] _ in
@@ -81,10 +82,30 @@ final class SuiteStore: ObservableObject {
 
     // MARK: Refresh
 
+    /// App bundles Spotlight found for the suite's bundle IDs (refreshed in the background).
+    private var spotlightHits: [URL] = []
+
     func scanInstalled() {
         var found: [String: InstalledApp] = [:]
-        for app in apps { if let i = Installer.locate(app) { found[app.id] = i } }
+        for app in apps { if let i = Installer.locate(app, extra: spotlightHits) { found[app.id] = i } }
         installed = found
+    }
+
+    /// Asks Spotlight for every copy of every tool, then re-scans. Runs off the main thread.
+    func scanWithSpotlight() async {
+        #if DEBUG
+        if TestMode.root != nil {
+            // Tests: pretend Spotlight found the apps in WORKBENCH_TEST_ELSEWHERE (outside Applications).
+            if let dir = ProcessInfo.processInfo.environment["WORKBENCH_TEST_ELSEWHERE"] {
+                spotlightHits = ((try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: dir), includingPropertiesForKeys: nil)) ?? [])
+                    .filter { $0.pathExtension == "app" }
+            }
+            scanInstalled(); return
+        }
+        #endif
+        let ids = apps.map(\.bundleId)
+        spotlightHits = await Task.detached(priority: .utility) { Installer.spotlightCopies(of: ids) }.value
+        scanInstalled()
     }
 
     /// Checks GitHub for new releases.
@@ -99,7 +120,7 @@ final class SuiteStore: ObservableObject {
         if let remote = await gh.remoteCatalog(owner: catalog.owner, repo: catalog.launcherRepo), !remote.apps.isEmpty {
             catalog = remote
         }
-        scanInstalled()
+        await scanWithSpotlight()
 
         let owner = catalog.owner
         let repos = apps.map(\.repo) + [catalog.launcherRepo]

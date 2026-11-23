@@ -256,10 +256,19 @@ struct ActionRow: View {
             case .installed(let v):
                 Label("v\(v)", systemImage: "checkmark.circle.fill").labelStyle(.titleAndIcon)
                     .font(.system(size: 11.5, weight: .medium)).foregroundStyle(Theme.mint)
+                if let where_ = store.installed[app.id], !where_.inApplications {
+                    Text("in \(where_.shortLocation)").statusStyle().lineLimit(1).truncationMode(.middle)
+                        .help("Found at \(where_.url.path). It isn't in Applications; Install puts a copy there.")
+                }
                 Spacer()
+                if let where_ = store.installed[app.id], !where_.inApplications {
+                    Button("Install") { Task { await store.install(app) } }.buttonStyle(AdaptiveSecondaryButtonStyle())
+                        .help("Install v\(v) into Applications")
+                }
                 Button("Open") { store.open(app) }.buttonStyle(AdaptiveSecondaryButtonStyle())
             case .updateAvailable(let from, let to):
                 Text("v\(from) → v\(to)").statusStyle()
+                    .help(store.installed[app.id].map { $0.inApplications ? $0.url.path : "Found at \($0.url.path). Updating installs v\(to) into Applications." } ?? "")
                 Spacer()
                 Button("Open") { store.open(app) }.buttonStyle(AdaptiveSecondaryButtonStyle())
                 Button("Update") { Task { await store.install(app) } }.buttonStyle(PrimaryButtonStyle())
@@ -356,9 +365,12 @@ struct AppDetailView: View {
             HStack(spacing: 10) {
                 Link(destination: store.repoURL(app)) { Label("Source Code", systemImage: "chevron.left.forwardslash.chevron.right") }
                     .buttonStyle(AdaptiveSecondaryButtonStyle())
-                if store.installed[app.id] != nil {
+                if let copy = store.installed[app.id] {
                     Button("Show in Finder") { store.reveal(app) }.buttonStyle(AdaptiveSecondaryButtonStyle())
-                    Button("Uninstall…") { confirmUninstall = true }.buttonStyle(AdaptiveSecondaryButtonStyle())
+                    // Only offer to remove real installs, never a project's build output.
+                    if copy.inApplications {
+                        Button("Uninstall…") { confirmUninstall = true }.buttonStyle(AdaptiveSecondaryButtonStyle())
+                    }
                 }
                 Spacer()
                 ActionRow(app: app).frame(maxWidth: 300)

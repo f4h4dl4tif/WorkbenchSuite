@@ -8,4 +8,5 @@ cp icons/*.png docs/icons/
 if [ -f launcher/Resources/AppIcon.icns ]; then
   sips -s format png -z 256 256 launcher/Resources/AppIcon.icns --out docs/icons/Workbench.png >/dev/null
 fi
+python3 scripts/build-releases.py
 echo "Site assets updated in docs/"
