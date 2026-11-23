@@ -1,5 +1,5 @@
 window.RELEASES = {
-  "updated": "2026-11-23T23:54:01Z",
+  "updated": "2026-11-23T23:56:33Z",
   "releases": {
     "AppSweep": {
       "version": "1.1",
@@ -186,12 +186,12 @@ window.RELEASES = {
       "size": 2028104
     },
     "WorkbenchSuite": {
-      "version": "1.1.2",
-      "date": "2026-11-23T23:37:58Z",
-      "url": "https://github.com/f4h4dl4tif/WorkbenchSuite/releases/tag/v1.1.2",
-      "download": "https://github.com/f4h4dl4tif/WorkbenchSuite/releases/download/v1.1.2/Workbench-1.1.2.dmg",
-      "file": "Workbench-1.1.2.dmg",
-      "size": 1452894
+      "version": "1.1.3",
+      "date": "2026-11-23T23:56:26Z",
+      "url": "https://github.com/f4h4dl4tif/WorkbenchSuite/releases/tag/v1.1.3",
+      "download": "https://github.com/f4h4dl4tif/WorkbenchSuite/releases/download/v1.1.3/Workbench-1.1.3.dmg",
+      "file": "Workbench-1.1.3.dmg",
+      "size": 1479979
     }
   }
 };
